@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  ebook-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: ebook-converter-api
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - API_KEY=your-secret-api-key-here
+      - MAX_FILE_SIZE=104857600  # 100MB
+      - CLEANUP_INTERVAL=86400   # 24 hours
+    volumes:
+      - ./storage:/app/storage
+      - /var/run/docker.sock:/var/run/docker.sock  # Pentru a rula comenzi Docker
+    depends_on:
+      - calibre-service
+    networks:
+      - ebook-network
+      - n8n-network
+    restart: unless-stopped
+    user: "0:0"  # Run as root pentru access la Docker socket pe Windows
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  calibre-service:
+    build:
+      context: ./calibre
+      dockerfile: Dockerfile
+    container_name: ebook-calibre
+    volumes:
+      - ./storage:/storage
+    networks:
+      - ebook-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "calibre", "--version"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  redis:
+    image: redis:7-alpine
+    container_name: ebook-redis
+    ports:
+      - "6381:6379"  # Schimb portul extern pentru a evita conflictul
+    networks:
+      - ebook-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  storage:
+    driver: local
+
+networks:
+  ebook-network:
+    driver: bridge
+  n8n-network:
+    external: true

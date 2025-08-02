@@ -1,0 +1,79 @@
+{
+  "name": "PDF to EPUB/MOBI - Upload & Convert",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "/upload-convert",
+        "options": {}
+      },
+      "id": "form-trigger",
+      "name": "Upload Form",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "upload-convert-pdf"
+    },
+    {
+      "parameters": {
+        "url": "http://192.168.1.21:3000/convert/single",
+        "sendBinaryData": true,
+        "options": {
+          "bodyContentType": "multipart-form-data"
+        }
+      },
+      "id": "convert-api",
+      "name": "Convert PDF",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [460, 300],
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "respondWith": "allEntries",
+        "options": {}
+      },
+      "id": "download-response",
+      "name": "Download Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [680, 300]
+    }
+  ],
+  "connections": {
+    "Upload Form": {
+      "main": [
+        [
+          {
+            "node": "Convert PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert PDF": {
+      "main": [
+        [
+          {
+            "node": "Download Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "versionId": "flow-v1",
+  "meta": {
+    "instanceId": "local-n8n"
+  },
+  "tags": [
+    {
+      "id": "ebook-conversion",
+      "name": "Ebook Conversion"
+    }
+  ]
+}

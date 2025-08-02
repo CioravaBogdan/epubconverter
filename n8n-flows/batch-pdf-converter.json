@@ -1,0 +1,163 @@
+{
+  "name": "PDF Batch Converter - Multiple Files",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "/batch-converter",
+        "options": {}
+      },
+      "id": "show-batch-form",
+      "name": "Show Batch Form",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 200],
+      "webhookId": "show-batch-form"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "/batch-converter",
+        "options": {}
+      },
+      "id": "process-batch",
+      "name": "Process Batch Upload",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 400],
+      "webhookId": "process-batch-upload"
+    },
+    {
+      "parameters": {
+        "jsCode": "// HTML form pentru batch upload\nconst batchForm = `\n<!DOCTYPE html>\n<html lang=\"ro\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>Convertor Batch PDF în EPUB/MOBI</title>\n    <style>\n        body {\n            font-family: Arial, sans-serif;\n            max-width: 800px;\n            margin: 30px auto;\n            padding: 20px;\n            background-color: #f8f9fa;\n        }\n        .container {\n            background: white;\n            padding: 40px;\n            border-radius: 15px;\n            box-shadow: 0 4px 15px rgba(0,0,0,0.1);\n        }\n        h1 {\n            color: #2c3e50;\n            text-align: center;\n            margin-bottom: 30px;\n            font-size: 28px;\n        }\n        .batch-area {\n            border: 3px dashed #3498db;\n            border-radius: 15px;\n            padding: 50px;\n            text-align: center;\n            margin-bottom: 30px;\n            background: #ecf0f1;\n            transition: all 0.3s;\n        }\n        .batch-area:hover {\n            border-color: #2980b9;\n            background: #d5dbdb;\n        }\n        .batch-area.dragover {\n            border-color: #27ae60;\n            background: #d5f4e6;\n        }\n        input[type=\"file\"] {\n            margin: 20px 0;\n            padding: 15px;\n            width: 100%;\n            border: 2px solid #bdc3c7;\n            border-radius: 8px;\n        }\n        select {\n            width: 100%;\n            padding: 15px;\n            margin: 15px 0;\n            border: 2px solid #bdc3c7;\n            border-radius: 8px;\n            font-size: 16px;\n        }\n        button {\n            background: linear-gradient(135deg, #3498db, #2980b9);\n            color: white;\n            padding: 15px 40px;\n            border: none;\n            border-radius: 8px;\n            cursor: pointer;\n            font-size: 18px;\n            width: 100%;\n            margin-top: 25px;\n            transition: all 0.3s;\n        }\n        button:hover {\n            background: linear-gradient(135deg, #2980b9, #1f618d);\n            transform: translateY(-2px);\n        }\n        .info {\n            background: linear-gradient(135deg, #e8f6f3, #d5f4e6);\n            border: 2px solid #27ae60;\n            padding: 20px;\n            border-radius: 10px;\n            margin-bottom: 25px;\n        }\n        .warning {\n            background: linear-gradient(135deg, #fef9e7, #fcf4d6);\n            border: 2px solid #f39c12;\n            padding: 20px;\n            border-radius: 10px;\n            margin-bottom: 25px;\n        }\n        .file-list {\n            margin-top: 20px;\n            padding: 15px;\n            background: #f8f9fa;\n            border-radius: 8px;\n            max-height: 200px;\n            overflow-y: auto;\n        }\n        .file-item {\n            padding: 8px;\n            margin: 5px 0;\n            background: white;\n            border-radius: 5px;\n            display: flex;\n            justify-content: space-between;\n            align-items: center;\n        }\n        .progress {\n            display: none;\n            margin-top: 20px;\n        }\n        .progress-bar {\n            width: 100%;\n            height: 20px;\n            background: #ecf0f1;\n            border-radius: 10px;\n            overflow: hidden;\n        }\n        .progress-fill {\n            height: 100%;\n            background: linear-gradient(90deg, #27ae60, #2ecc71);\n            width: 0%;\n            transition: width 0.3s;\n        }\n    </style>\n</head>\n<body>\n    <div class=\"container\">\n        <h1>📚 Convertor Batch PDF în EPUB/MOBI</h1>\n        \n        <div class=\"info\">\n            <strong>✨ Conversie în lot - Multiple fișiere:</strong>\n            <ul>\n                <li>Selectați multiple fișiere PDF deodată</li>\n                <li>Toate vor fi convertite în același format</li>\n                <li>Rezultatul va fi un arhivă ZIP cu toate fișierele convertite</li>\n                <li>Timpul de procesare depinde de numărul și mărimea fișierelor</li>\n            </ul>\n        </div>\n        \n        <div class=\"warning\">\n            <strong>⚠️ Atenție:</strong> Procesarea în lot poate dura mai mult timp. Vă rugăm să nu închideți pagina în timpul conversiei.\n        </div>\n        \n        <form method=\"POST\" enctype=\"multipart/form-data\" id=\"batchForm\">\n            <div class=\"batch-area\" id=\"batchArea\">\n                <p>📄 Trageți fișierele PDF aici sau faceți clic pentru a selecta multiple fișiere</p>\n                <input type=\"file\" name=\"files\" accept=\".pdf\" multiple required id=\"fileInput\">\n            </div>\n            \n            <div class=\"file-list\" id=\"fileList\" style=\"display: none;\"></div>\n            \n            <label for=\"format\">Format de ieșire pentru toate fișierele:</label>\n            <select name=\"format\" required>\n                <option value=\"epub\">EPUB (recomandat pentru majoritatea cititorilor)</option>\n                <option value=\"mobi\">MOBI (pentru Amazon Kindle)</option>\n            </select>\n            \n            <button type=\"submit\" id=\"convertBtn\">🔄 Convertește toate fișierele PDF</button>\n            \n            <div class=\"progress\" id=\"progressDiv\">\n                <p>Se procesează fișierele... Vă rugăm așteptați.</p>\n                <div class=\"progress-bar\">\n                    <div class=\"progress-fill\" id=\"progressFill\"></div>\n                </div>\n            </div>\n        </form>\n    </div>\n    \n    <script>\n        const batchArea = document.getElementById('batchArea');\n        const fileInput = document.getElementById('fileInput');\n        const fileList = document.getElementById('fileList');\n        const form = document.getElementById('batchForm');\n        const convertBtn = document.getElementById('convertBtn');\n        const progressDiv = document.getElementById('progressDiv');\n        const progressFill = document.getElementById('progressFill');\n        \n        let selectedFiles = [];\n        \n        batchArea.addEventListener('click', () => fileInput.click());\n        \n        batchArea.addEventListener('dragover', (e) => {\n            e.preventDefault();\n            batchArea.classList.add('dragover');\n        });\n        \n        batchArea.addEventListener('dragleave', () => {\n            batchArea.classList.remove('dragover');\n        });\n        \n        batchArea.addEventListener('drop', (e) => {\n            e.preventDefault();\n            batchArea.classList.remove('dragover');\n            \n            const files = Array.from(e.dataTransfer.files).filter(file => \n                file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')\n            );\n            \n            if (files.length > 0) {\n                updateFileList(files);\n            }\n        });\n        \n        fileInput.addEventListener('change', (e) => {\n            const files = Array.from(e.target.files);\n            updateFileList(files);\n        });\n        \n        function updateFileList(files) {\n            selectedFiles = files;\n            \n            if (files.length === 0) {\n                fileList.style.display = 'none';\n                batchArea.querySelector('p').textContent = '📄 Trageți fișierele PDF aici sau faceți clic pentru a selecta multiple fișiere';\n                return;\n            }\n            \n            batchArea.querySelector('p').textContent = `📄 ${files.length} fișiere PDF selectate`;\n            \n            fileList.innerHTML = '';\n            files.forEach((file, index) => {\n                const fileItem = document.createElement('div');\n                fileItem.className = 'file-item';\n                fileItem.innerHTML = `\n                    <span>${file.name}</span>\n                    <span>${(file.size / 1024 / 1024).toFixed(2)} MB</span>\n                `;\n                fileList.appendChild(fileItem);\n            });\n            \n            fileList.style.display = 'block';\n        }\n        \n        form.addEventListener('submit', (e) => {\n            if (selectedFiles.length === 0) {\n                e.preventDefault();\n                alert('Vă rugăm selectați cel puțin un fișier PDF.');\n                return;\n            }\n            \n            convertBtn.disabled = true;\n            convertBtn.textContent = '⏳ Se procesează...';\n            progressDiv.style.display = 'block';\n            \n            // Simulare progress (în realitate ar trebui să folosim WebSocket pentru progress real)\n            let progress = 0;\n            const interval = setInterval(() => {\n                progress += Math.random() * 10;\n                if (progress > 90) progress = 90;\n                progressFill.style.width = progress + '%';\n            }, 1000);\n            \n            // Cleanup la submit\n            setTimeout(() => {\n                clearInterval(interval);\n                progressFill.style.width = '100%';\n            }, 500);\n        });\n    </script>\n</body>\n</html>\n`;\n\nreturn [{\n  json: {\n    htmlContent: batchForm\n  }\n}];"
+      },
+      "id": "generate-batch-form",
+      "name": "Generate Batch Form",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.htmlContent }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/html; charset=utf-8"
+              }
+            ]
+          }
+        }
+      },
+      "id": "return-batch-form",
+      "name": "Return Batch Form",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [680, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://192.168.1.21:3000/convert/batch",
+        "sendBinaryData": true,
+        "options": {
+          "bodyContentType": "multipart-form-data",
+          "timeout": 300000
+        }
+      },
+      "id": "convert-batch",
+      "name": "Convert Batch PDFs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [460, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "allEntries",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Disposition",
+                "value": "attachment; filename=\"converted-books-{{ $now }}.zip\""
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/zip"
+              }
+            ]
+          }
+        }
+      },
+      "id": "download-batch",
+      "name": "Download Batch ZIP",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [680, 400]
+    }
+  ],
+  "connections": {
+    "Show Batch Form": {
+      "main": [
+        [
+          {
+            "node": "Generate Batch Form",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Batch Upload": {
+      "main": [
+        [
+          {
+            "node": "Convert Batch PDFs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Batch Form": {
+      "main": [
+        [
+          {
+            "node": "Return Batch Form",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert Batch PDFs": {
+      "main": [
+        [
+          {
+            "node": "Download Batch ZIP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "versionId": "batch-converter-v1",
+  "meta": {
+    "instanceId": "local-n8n"
+  },
+  "tags": [
+    {
+      "id": "ebook-conversion",
+      "name": "Ebook Conversion"
+    },
+    {
+      "id": "batch-converter",
+      "name": "Batch Converter"
+    }
+  ]
+}

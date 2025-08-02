@@ -1,0 +1,519 @@
+{
+  "name": "PDF to EPUB/MOBI Converter",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "pdf-convert",
+        "responseMode": "lastNode",
+        "options": {
+          "noResponseBody": false
+        }
+      },
+      "id": "webhook-trigger",
+      "name": "PDF Upload Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "pdf-convert-webhook"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.body.file}}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "validate-file",
+      "name": "Validate PDF File",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://ebook-converter-api:3000/api/convert/single",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{$env.EBOOK_API_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "multipart/form-data"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "file",
+              "value": "={{$binary.data}}"
+            },
+            {
+              "name": "format",
+              "value": "={{$json.body.format || 'both'}}"
+            },
+            {
+              "name": "title",
+              "value": "={{$json.body.title || $json.body.filename}}"
+            },
+            {
+              "name": "author",
+              "value": "={{$json.body.author || 'Unknown Author'}}"
+            },
+            {
+              "name": "optimize",
+              "value": "={{$json.body.optimize || 'ipad'}}"
+            },
+            {
+              "name": "cover",
+              "value": "={{$json.body.extractCover || true}}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 600000,
+          "retry": {
+            "enabled": true,
+            "maxTries": 3,
+            "waitBetween": 1000
+          }
+        }
+      },
+      "id": "convert-pdf",
+      "name": "Convert PDF to EPUB/MOBI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [680, 200],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.success}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check-conversion-success",
+      "name": "Check Conversion Success",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{$json.files[0].downloadUrl}}"
+        },
+        "options": {
+          "fileName": "={{$json.files[0].filename}}"
+        }
+      },
+      "id": "download-epub",
+      "name": "Download EPUB File",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1120, 100],
+      "disabled": false
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "mode": "url", 
+          "value": "={{$json.files[1] ? $json.files[1].downloadUrl : ''}}"
+        },
+        "options": {
+          "fileName": "={{$json.files[1] ? $json.files[1].filename : ''}}"
+        }
+      },
+      "id": "download-mobi",
+      "name": "Download MOBI File",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1120, 200],
+      "disabled": false
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "folderId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "={{$env.GOOGLE_DRIVE_FOLDER_ID}}"
+        },
+        "binaryData": true,
+        "fileContent": "={{$binary.data}}",
+        "name": "={{$json.filename}}",
+        "options": {
+          "description": "Converted from PDF using n8n automation"
+        }
+      },
+      "id": "save-to-drive-epub",
+      "name": "Save EPUB to Google Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [1340, 100],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "google-drive-credentials",
+          "name": "Google Drive Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "folderId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "={{$env.GOOGLE_DRIVE_FOLDER_ID}}"
+        },
+        "binaryData": true,
+        "fileContent": "={{$binary.data}}",
+        "name": "={{$json.filename}}",
+        "options": {
+          "description": "Converted from PDF using n8n automation"
+        }
+      },
+      "id": "save-to-drive-mobi",
+      "name": "Save MOBI to Google Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [1340, 200],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "google-drive-credentials",
+          "name": "Google Drive Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{$env.SMTP_FROM_EMAIL}}",
+        "toEmail": "={{$json.body.email || $env.DEFAULT_NOTIFICATION_EMAIL}}",
+        "subject": "✅ Conversia PDF → EPUB/MOBI finalizată cu succes!",
+        "message": "=Bună!\n\nConversia fișierului PDF \"{{$json.body.title || $json.body.filename}}\" a fost finalizată cu succes!\n\n📊 Detalii conversie:\n• Timp procesare: {{$node['Convert PDF to EPUB/MOBI'].json.processingTime}}ms\n• Formate generate: {{$node['Convert PDF to EPUB/MOBI'].json.files.length}}\n• Job ID: {{$node['Convert PDF to EPUB/MOBI'].json.jobId}}\n\n📁 Fișiere disponibile în Google Drive:\n{{$node['Save EPUB to Google Drive'].json ? '• EPUB: ' + $node['Save EPUB to Google Drive'].json.name + ' (' + $node['Save EPUB to Google Drive'].json.webViewLink + ')' : ''}}\n{{$node['Save MOBI to Google Drive'].json ? '• MOBI: ' + $node['Save MOBI to Google Drive'].json.name + ' (' + $node['Save MOBI to Google Drive'].json.webViewLink + ')' : ''}}\n\n🎉 Fișierele sunt gata pentru citire pe iPad (EPUB) și Kindle (MOBI)!\n\nCu drag,\nSistemul automat de conversie",
+        "options": {
+          "allowUnauthorizedCerts": true
+        }
+      },
+      "id": "send-success-email",
+      "name": "Send Success Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [1560, 150],
+      "credentials": {
+        "smtp": {
+          "id": "smtp-credentials",
+          "name": "SMTP Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{$env.SMTP_FROM_EMAIL}}",
+        "toEmail": "={{$json.body.email || $env.DEFAULT_NOTIFICATION_EMAIL}}",
+        "subject": "❌ Eroare la conversia PDF → EPUB/MOBI",
+        "message": "=Ne pare rău!\n\nA apărut o eroare la conversia fișierului PDF \"{{$json.body.title || $json.body.filename}}\".\n\n🔍 Detalii eroare:\n{{$node['Convert PDF to EPUB/MOBI'].json.error || 'Eroare necunoscută'}}\n\n💡 Sugestii:\n• Verifică că fișierul este un PDF valid\n• Asigură-te că dimensiunea nu depășește 100MB\n• Încearcă din nou în câteva minute\n\nDacă problema persistă, contactează-ne pentru suport.\n\nCu regret,\nSistemul automat de conversie",
+        "options": {
+          "allowUnauthorizedCerts": true
+        }
+      },
+      "id": "send-error-email",
+      "name": "Send Error Email", 
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [1120, 400],
+      "credentials": {
+        "smtp": {
+          "id": "smtp-credentials",
+          "name": "SMTP Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{$env.SMTP_FROM_EMAIL}}",
+        "toEmail": "={{$env.DEFAULT_NOTIFICATION_EMAIL}}",
+        "subject": "⚠️ Fișier invalid încărcat pentru conversie",
+        "message": "=Un fișier invalid a fost încărcat pentru conversie.\n\n📄 Detalii:\n• IP: {{$json.headers['x-forwarded-for'] || $json.headers['x-real-ip'] || 'necunoscut'}}\n• User Agent: {{$json.headers['user-agent'] || 'necunoscut'}}\n• Timestamp: {{new Date().toISOString()}}\n• Fișier: {{$json.body.filename || 'nume necunoscut'}}\n\n🔍 Problema: Fișierul încărcat nu este un PDF valid sau lipsește.\n\nAceastă notificare este trimisă automat pentru monitorizarea securității.",
+        "options": {
+          "allowUnauthorizedCerts": true
+        }
+      },
+      "id": "send-invalid-file-alert",
+      "name": "Send Invalid File Alert",
+      "type": "n8n-nodes-base.emailSend", 
+      "typeVersion": 2,
+      "position": [680, 400],
+      "credentials": {
+        "smtp": {
+          "id": "smtp-credentials",
+          "name": "SMTP Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "delay": 30000
+        }
+      },
+      "id": "cleanup-delay",
+      "name": "Wait Before Cleanup",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [1780, 150]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.EBOOK_API_URL}}/cleanup/{{$node['Convert PDF to EPUB/MOBI'].json.jobId}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{$env.EBOOK_API_KEY}}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "cleanup-temp-files",
+      "name": "Cleanup Temp Files",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [2000, 150],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": {{$node['Check Conversion Success'].json ? 'true' : 'false'}},\n  \"message\": \"{{$node['Check Conversion Success'].json ? 'Conversia a fost finalizată cu succes. Verifică email-ul pentru detalii.' : 'A apărut o eroare la conversie. Verifică email-ul pentru detalii.'}}\",\n  \"jobId\": \"{{$node['Convert PDF to EPUB/MOBI'].json.jobId || 'N/A'}}\",\n  \"files\": {{$node['Convert PDF to EPUB/MOBI'].json.files ? JSON.stringify($node['Convert PDF to EPUB/MOBI'].json.files) : '[]'}},\n  \"processingTime\": {{$node['Convert PDF to EPUB/MOBI'].json.processingTime || 0}},\n  \"timestamp\": \"{{new Date().toISOString()}}\"\n}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Access-Control-Allow-Origin", 
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "webhook-response",
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2220, 150]
+    }
+  ],
+  "connections": {
+    "PDF Upload Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate PDF File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate PDF File": {
+      "main": [
+        [
+          {
+            "node": "Convert PDF to EPUB/MOBI",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Invalid File Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert PDF to EPUB/MOBI": {
+      "main": [
+        [
+          {
+            "node": "Check Conversion Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Conversion Success": {
+      "main": [
+        [
+          {
+            "node": "Download EPUB File",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Download MOBI File",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Error Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download EPUB File": {
+      "main": [
+        [
+          {
+            "node": "Save EPUB to Google Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download MOBI File": {
+      "main": [
+        [
+          {
+            "node": "Save MOBI to Google Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save EPUB to Google Drive": {
+      "main": [
+        [
+          {
+            "node": "Send Success Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save MOBI to Google Drive": {
+      "main": [
+        [
+          {
+            "node": "Send Success Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Success Email": {
+      "main": [
+        [
+          {
+            "node": "Wait Before Cleanup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Error Email": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Invalid File Alert": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait Before Cleanup": {
+      "main": [
+        [
+          {
+            "node": "Cleanup Temp Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cleanup Temp Files": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "saveManualExecutions": true,
+    "executionTimeout": 3600,
+    "timezone": "Europe/Bucharest"
+  },
+  "staticData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "versionId": "1.0.0",
+  "triggerCount": 1,
+  "tags": [
+    {
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z",
+      "id": "pdf-conversion",
+      "name": "PDF Conversion"
+    }
+  ]
+}

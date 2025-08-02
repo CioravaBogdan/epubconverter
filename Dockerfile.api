@@ -1,0 +1,42 @@
+FROM node:18-alpine
+
+# Install curl and docker cli for health checks and docker commands
+RUN apk add --no-cache curl docker-cli
+
+# Create app directory
+WORKDIR /app
+
+# Copy package files
+COPY api/package*.json ./
+
+# Install dependencies
+RUN npm install --only=production
+
+# Copy application code
+COPY api/ .
+
+# Create storage and logs directories
+RUN mkdir -p storage/input storage/output storage/temp logs
+
+# Create docker group with same GID as host (usually 999 or 998)
+RUN addgroup -g 999 -S docker || addgroup -g 998 -S docker || true
+
+# Create non-root user and add to docker group
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001 && \
+    adduser nodejs docker
+
+# Change ownership of directories
+RUN chown -R nodejs:nodejs /app/storage /app/logs
+
+# Note: For Windows Docker Desktop, run as root via docker-compose user override
+
+# Expose port
+EXPOSE 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:3000/health || exit 1
+
+# Start the application
+CMD ["node", "server.js"]

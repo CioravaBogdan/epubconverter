@@ -1,0 +1,163 @@
+{
+  "name": "PDF Converter - Complete Interface",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "/pdf-converter",
+        "options": {}
+      },
+      "id": "show-form",
+      "name": "Show Upload Form",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 200],
+      "webhookId": "show-pdf-form"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "/pdf-converter",
+        "options": {}
+      },
+      "id": "process-upload",
+      "name": "Process Upload",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 400],
+      "webhookId": "process-pdf-upload"
+    },
+    {
+      "parameters": {
+        "jsCode": "// HTML form pentru upload PDF\nconst htmlForm = `\n<!DOCTYPE html>\n<html lang=\"ro\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>Convertor PDF în EPUB/MOBI</title>\n    <style>\n        body {\n            font-family: Arial, sans-serif;\n            max-width: 600px;\n            margin: 50px auto;\n            padding: 20px;\n            background-color: #f5f5f5;\n        }\n        .container {\n            background: white;\n            padding: 30px;\n            border-radius: 10px;\n            box-shadow: 0 2px 10px rgba(0,0,0,0.1);\n        }\n        h1 {\n            color: #333;\n            text-align: center;\n            margin-bottom: 30px;\n        }\n        .upload-area {\n            border: 2px dashed #ccc;\n            border-radius: 10px;\n            padding: 40px;\n            text-align: center;\n            margin-bottom: 20px;\n            transition: border-color 0.3s;\n        }\n        .upload-area:hover {\n            border-color: #007bff;\n        }\n        input[type=\"file\"] {\n            margin: 20px 0;\n            padding: 10px;\n            width: 100%;\n        }\n        select {\n            width: 100%;\n            padding: 10px;\n            margin: 10px 0;\n            border: 1px solid #ddd;\n            border-radius: 5px;\n        }\n        button {\n            background-color: #007bff;\n            color: white;\n            padding: 12px 30px;\n            border: none;\n            border-radius: 5px;\n            cursor: pointer;\n            font-size: 16px;\n            width: 100%;\n            margin-top: 20px;\n        }\n        button:hover {\n            background-color: #0056b3;\n        }\n        .info {\n            background-color: #e7f3ff;\n            border: 1px solid #b3d9ff;\n            padding: 15px;\n            border-radius: 5px;\n            margin-bottom: 20px;\n        }\n    </style>\n</head>\n<body>\n    <div class=\"container\">\n        <h1>📚 Convertor PDF în EPUB/MOBI</h1>\n        \n        <div class=\"info\">\n            <strong>Instrucțiuni:</strong>\n            <ul>\n                <li>Selectați fișierul PDF pe care doriți să-l convertiți</li>\n                <li>Alegeți formatul de ieșire (EPUB sau MOBI)</li>\n                <li>Faceți clic pe \"Convertește\" și așteptați</li>\n                <li>Fișierul convertit va fi descărcat automat</li>\n            </ul>\n        </div>\n        \n        <form method=\"POST\" enctype=\"multipart/form-data\">\n            <div class=\"upload-area\">\n                <p>📄 Trageți fișierul PDF aici sau faceți clic pentru a selecta</p>\n                <input type=\"file\" name=\"file\" accept=\".pdf\" required>\n            </div>\n            \n            <label for=\"format\">Format de ieșire:</label>\n            <select name=\"format\" required>\n                <option value=\"epub\">EPUB (recomandat pentru majoritatea cititorilor)</option>\n                <option value=\"mobi\">MOBI (pentru Amazon Kindle)</option>\n            </select>\n            \n            <button type=\"submit\">🔄 Convertește PDF</button>\n        </form>\n    </div>\n    \n    <script>\n        // Drag and drop functionality\n        const uploadArea = document.querySelector('.upload-area');\n        const fileInput = document.querySelector('input[type=\"file\"]');\n        \n        uploadArea.addEventListener('click', () => fileInput.click());\n        \n        uploadArea.addEventListener('dragover', (e) => {\n            e.preventDefault();\n            uploadArea.style.borderColor = '#007bff';\n        });\n        \n        uploadArea.addEventListener('dragleave', () => {\n            uploadArea.style.borderColor = '#ccc';\n        });\n        \n        uploadArea.addEventListener('drop', (e) => {\n            e.preventDefault();\n            uploadArea.style.borderColor = '#ccc';\n            \n            const files = e.dataTransfer.files;\n            if (files.length > 0) {\n                fileInput.files = files;\n            }\n        });\n        \n        fileInput.addEventListener('change', (e) => {\n            const fileName = e.target.files[0]?.name;\n            if (fileName) {\n                uploadArea.querySelector('p').textContent = `📄 Selectat: ${fileName}`;\n            }\n        });\n    </script>\n</body>\n</html>\n`;\n\nreturn [{\n  json: {\n    htmlContent: htmlForm\n  }\n}];"
+      },
+      "id": "generate-form",
+      "name": "Generate HTML Form",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.htmlContent }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/html; charset=utf-8"
+              }
+            ]
+          }
+        }
+      },
+      "id": "return-form",
+      "name": "Return HTML Form",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [680, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://192.168.1.21:3000/convert/single",
+        "sendBinaryData": true,
+        "options": {
+          "bodyContentType": "multipart-form-data",
+          "timeout": 60000
+        }
+      },
+      "id": "convert-pdf",
+      "name": "Convert PDF to EPUB/MOBI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [460, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "allEntries",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Disposition",
+                "value": "attachment; filename=\"{{ $json.filename || 'converted-book' }}.{{ $json.format || 'epub' }}\""
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/octet-stream"
+              }
+            ]
+          }
+        }
+      },
+      "id": "download-result",
+      "name": "Download Converted File",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [680, 400]
+    }
+  ],
+  "connections": {
+    "Show Upload Form": {
+      "main": [
+        [
+          {
+            "node": "Generate HTML Form",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Upload": {
+      "main": [
+        [
+          {
+            "node": "Convert PDF to EPUB/MOBI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate HTML Form": {
+      "main": [
+        [
+          {
+            "node": "Return HTML Form",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert PDF to EPUB/MOBI": {
+      "main": [
+        [
+          {
+            "node": "Download Converted File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "versionId": "complete-interface-v1",
+  "meta": {
+    "instanceId": "local-n8n"
+  },
+  "tags": [
+    {
+      "id": "ebook-conversion",
+      "name": "Ebook Conversion"
+    },
+    {
+      "id": "pdf-converter",
+      "name": "PDF Converter"
+    }
+  ]
+}

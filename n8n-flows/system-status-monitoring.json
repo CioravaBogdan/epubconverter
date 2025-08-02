@@ -1,0 +1,146 @@
+{
+  "name": "System Status & Monitoring",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "/system-status",
+        "options": {}
+      },
+      "id": "status-endpoint",
+      "name": "System Status Endpoint",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "system-status-check"
+    },
+    {
+      "parameters": {
+        "url": "http://192.168.1.21:3000/health",
+        "options": {
+          "timeout": 5000
+        }
+      },
+      "id": "check-api",
+      "name": "Check API Health",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [460, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://192.168.1.21:3000/metrics",
+        "options": {
+          "timeout": 5000
+        }
+      },
+      "id": "get-metrics",
+      "name": "Get System Metrics",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [460, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Colectează informații despre statusul sistemului\nconst apiHealth = $input.first('Check API Health')?.json;\nconst metrics = $input.first('Get System Metrics')?.json;\n\n// Generează HTML pentru status\nconst statusHtml = `\n<!DOCTYPE html>\n<html lang=\"ro\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>Status Sistem Convertor PDF</title>\n    <style>\n        body {\n            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;\n            margin: 0;\n            padding: 20px;\n            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);\n            min-height: 100vh;\n        }\n        .container {\n            max-width: 1200px;\n            margin: 0 auto;\n            background: white;\n            border-radius: 20px;\n            box-shadow: 0 20px 40px rgba(0,0,0,0.1);\n            overflow: hidden;\n        }\n        .header {\n            background: linear-gradient(135deg, #2c3e50, #34495e);\n            color: white;\n            padding: 30px;\n            text-align: center;\n        }\n        .header h1 {\n            margin: 0;\n            font-size: 2.5em;\n        }\n        .status-grid {\n            display: grid;\n            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));\n            gap: 20px;\n            padding: 30px;\n        }\n        .status-card {\n            background: #f8f9fa;\n            border-radius: 15px;\n            padding: 25px;\n            border-left: 5px solid #28a745;\n        }\n        .status-card.warning {\n            border-left-color: #ffc107;\n        }\n        .status-card.error {\n            border-left-color: #dc3545;\n        }\n        .status-title {\n            font-size: 1.3em;\n            font-weight: bold;\n            margin-bottom: 15px;\n            color: #2c3e50;\n        }\n        .status-value {\n            font-size: 1.1em;\n            margin: 8px 0;\n        }\n        .status-badge {\n            display: inline-block;\n            padding: 5px 12px;\n            border-radius: 20px;\n            font-size: 0.9em;\n            font-weight: bold;\n            margin-left: 10px;\n        }\n        .badge-success {\n            background: #d4edda;\n            color: #155724;\n        }\n        .badge-warning {\n            background: #fff3cd;\n            color: #856404;\n        }\n        .badge-error {\n            background: #f8d7da;\n            color: #721c24;\n        }\n        .metrics-table {\n            width: 100%;\n            border-collapse: collapse;\n            margin-top: 15px;\n        }\n        .metrics-table th,\n        .metrics-table td {\n            padding: 12px;\n            text-align: left;\n            border-bottom: 1px solid #dee2e6;\n        }\n        .metrics-table th {\n            background: #e9ecef;\n            font-weight: bold;\n        }\n        .refresh-btn {\n            position: fixed;\n            bottom: 30px;\n            right: 30px;\n            background: #007bff;\n            color: white;\n            border: none;\n            border-radius: 50px;\n            padding: 15px 25px;\n            font-size: 16px;\n            cursor: pointer;\n            box-shadow: 0 5px 15px rgba(0,123,255,0.3);\n        }\n        .refresh-btn:hover {\n            background: #0056b3;\n        }\n        .timestamp {\n            text-align: center;\n            padding: 20px;\n            color: #6c757d;\n            font-style: italic;\n        }\n    </style>\n    <script>\n        function refreshPage() {\n            window.location.reload();\n        }\n        \n        // Auto-refresh la fiecare 30 secunde\n        setTimeout(refreshPage, 30000);\n    </script>\n</head>\n<body>\n    <div class=\"container\">\n        <div class=\"header\">\n            <h1>📊 Status Sistem Convertor PDF</h1>\n            <p>Monitorizare în timp real a serviciilor</p>\n        </div>\n        \n        <div class=\"status-grid\">\n            <!-- API Health Status -->\n            <div class=\"status-card ${\n              apiHealth?.status === 'healthy' ? '' : 'error'\n            }\">\n                <div class=\"status-title\">🔧 API Status</div>\n                <div class=\"status-value\">\n                    Status: \n                    <span class=\"status-badge ${\n                      apiHealth?.status === 'healthy' \n                        ? 'badge-success' \n                        : 'badge-error'\n                    }\">\n                        ${apiHealth?.status || 'Necunoscut'}\n                    </span>\n                </div>\n                <div class=\"status-value\">Versiune: ${apiHealth?.version || 'N/A'}</div>\n                <div class=\"status-value\">Uptime: ${apiHealth?.uptime ? Math.floor(apiHealth.uptime) + ' secunde' : 'N/A'}</div>\n            </div>\n            \n            <!-- Services Status -->\n            <div class=\"status-card\">\n                <div class=\"status-title\">⚙️ Servicii</div>\n                <div class=\"status-value\">\n                    API: \n                    <span class=\"status-badge badge-success\">\n                        ${apiHealth?.services?.api || 'N/A'}\n                    </span>\n                </div>\n                <div class=\"status-value\">\n                    Calibre: \n                    <span class=\"status-badge ${\n                      apiHealth?.services?.calibre === 'available' \n                        ? 'badge-success' \n                        : 'badge-error'\n                    }\">\n                        ${apiHealth?.services?.calibre || 'N/A'}\n                    </span>\n                </div>\n                <div class=\"status-value\">\n                    Redis: \n                    <span class=\"status-badge ${\n                      apiHealth?.services?.redis === 'connected' \n                        ? 'badge-success' \n                        : 'badge-error'\n                    }\">\n                        ${apiHealth?.services?.redis || 'N/A'}\n                    </span>\n                </div>\n            </div>\n            \n            <!-- System Metrics -->\n            <div class=\"status-card\">\n                <div class=\"status-title\">📈 Metrici Sistem</div>\n                ${metrics ? `\n                    <div class=\"status-value\">Conversii totale: ${metrics.totalConversions || 0}</div>\n                    <div class=\"status-value\">Conversii reușite: ${metrics.successfulConversions || 0}</div>\n                    <div class=\"status-value\">Rata de succes: ${metrics.successRate || '0%'}</div>\n                    <div class=\"status-value\">Fișiere în proces: ${metrics.activeJobs || 0}</div>\n                ` : '<div class=\"status-value\">Metricile nu sunt disponibile</div>'}\n            </div>\n            \n            <!-- Performance -->\n            <div class=\"status-card\">\n                <div class=\"status-title\">⚡ Performanță</div>\n                ${metrics ? `\n                    <div class=\"status-value\">Timp mediu conversie: ${metrics.averageProcessingTime || 'N/A'}</div>\n                    <div class=\"status-value\">Memorie utilizată: ${metrics.memoryUsage || 'N/A'}</div>\n                    <div class=\"status-value\">Spațiu disc disponibil: ${metrics.diskSpace || 'N/A'}</div>\n                ` : '<div class=\"status-value\">Datele de performanță nu sunt disponibile</div>'}\n            </div>\n        </div>\n        \n        <!-- Detailed Metrics Table -->\n        ${metrics?.recentJobs ? `\n        <div style=\"padding: 0 30px 30px;\">\n            <h3>🕒 Joburi Recente</h3>\n            <table class=\"metrics-table\">\n                <thead>\n                    <tr>\n                        <th>Fișier</th>\n                        <th>Format</th>\n                        <th>Status</th>\n                        <th>Durată</th>\n                        <th>Timestamp</th>\n                    </tr>\n                </thead>\n                <tbody>\n                    ${metrics.recentJobs.map(job => `\n                        <tr>\n                            <td>${job.filename || 'N/A'}</td>\n                            <td>${job.format || 'N/A'}</td>\n                            <td>\n                                <span class=\"status-badge ${\n                                  job.status === 'completed' \n                                    ? 'badge-success' \n                                    : job.status === 'failed' \n                                    ? 'badge-error' \n                                    : 'badge-warning'\n                                }\">\n                                    ${job.status || 'N/A'}\n                                </span>\n                            </td>\n                            <td>${job.duration || 'N/A'}</td>\n                            <td>${job.timestamp || 'N/A'}</td>\n                        </tr>\n                    `).join('')}\n                </tbody>\n            </table>\n        </div>\n        ` : ''}\n        \n        <div class=\"timestamp\">\n            Ultima actualizare: ${new Date().toLocaleString('ro-RO')}\n        </div>\n    </div>\n    \n    <button class=\"refresh-btn\" onclick=\"refreshPage()\">🔄 Reîmprospătează</button>\n</body>\n</html>\n`;\n\nreturn [{\n  json: {\n    htmlContent: statusHtml\n  }\n}];"
+      },
+      "id": "generate-status",
+      "name": "Generate Status Dashboard",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.htmlContent }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/html; charset=utf-8"
+              },
+              {
+                "name": "Cache-Control",
+                "value": "no-cache, no-store, must-revalidate"
+              }
+            ]
+          }
+        }
+      },
+      "id": "return-status",
+      "name": "Return Status Dashboard",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "System Status Endpoint": {
+      "main": [
+        [
+          {
+            "node": "Check API Health",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get System Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check API Health": {
+      "main": [
+        [
+          {
+            "node": "Generate Status Dashboard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get System Metrics": {
+      "main": [
+        [
+          {
+            "node": "Generate Status Dashboard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Status Dashboard": {
+      "main": [
+        [
+          {
+            "node": "Return Status Dashboard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "versionId": "status-monitoring-v1",
+  "meta": {
+    "instanceId": "local-n8n"
+  },
+  "tags": [
+    {
+      "id": "monitoring",
+      "name": "Monitoring"
+    },
+    {
+      "id": "system-status",
+      "name": "System Status"
+    }
+  ]
+}

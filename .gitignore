@@ -1,0 +1,90 @@
+# Dependencies
+node_modules/
+api/node_modules/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Storage directories
+storage/input/*
+storage/output/*
+storage/temp/*
+
+# Keep directory structure
+!storage/input/.gitkeep
+!storage/output/.gitkeep
+!storage/temp/.gitkeep
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Docker
+.docker/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE/Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Backup files
+*.backup
+*.bak
+docker-compose.yml.backup
+
+# Test files
+test.pdf
+sample.pdf
+*.test.pdf
+
+# Build artifacts
+dist/
+build/
+
+# Coverage directory used by tools like istanbul
+coverage/
+
+# nyc test coverage
+.nyc_output
+
+# Temporary files
+*.tmp
+*.temp
+
+# Local configuration
+config/local.json
+
+# Redis dump
+dump.rdb
+
+# PM2 logs
+.pm2/
+
+# API testing
+postman-collection.json
+test_api.py
+test_api.js
