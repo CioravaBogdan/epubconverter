@@ -6,7 +6,7 @@ const BOOK_TEMPLATES = {
       '--output-profile': 'tablet',
       '--epub-version': '3',
       '--preserve-cover-aspect-ratio': '',
-      '--flow-size': '0',
+
       '--embed-all-fonts': '',
       '--disable-font-rescaling': '',
       '--minimum-line-height': '160',
@@ -29,7 +29,7 @@ const BOOK_TEMPLATES = {
       '--output-profile': 'ipad3',
       '--epub-version': '3',
       '--preserve-cover-aspect-ratio': '',
-      '--flow-size': '0',
+
       '--embed-all-fonts': '',
       '--disable-font-rescaling': '',
       '--minimum-line-height': '150',
@@ -52,7 +52,7 @@ const BOOK_TEMPLATES = {
       '--output-profile': 'ipad3',
       '--epub-version': '3',
       '--preserve-cover-aspect-ratio': '',
-      '--flow-size': '0',
+
       '--embed-all-fonts': '',
       '--disable-font-rescaling': '',
       '--minimum-line-height': '150',
@@ -93,7 +93,7 @@ const BOOK_TEMPLATES = {
       '--output-profile': 'generic_eink',
       '--epub-version': '3',
       '--preserve-cover-aspect-ratio': '',
-      '--flow-size': '0',
+
       '--embed-all-fonts': '',
       '--expand-css': '',
       '--margin-left': '8',
@@ -113,7 +113,7 @@ const BOOK_TEMPLATES = {
       '--output-profile': 'ipad3',
       '--epub-version': '3',
       '--preserve-cover-aspect-ratio': '',
-      '--flow-size': '0',
+
       '--embed-all-fonts': '',
       '--disable-font-rescaling': '',
       '--margin-left': '3',
@@ -134,7 +134,7 @@ const BOOK_TEMPLATES = {
       '--output-profile': 'tablet',
       '--epub-version': '3', 
       '--preserve-cover-aspect-ratio': '',
-      '--flow-size': '0',
+
       '--embed-all-fonts': '',
       '--minimum-line-height': '140',
       '--margin-left': '2',
@@ -153,7 +153,7 @@ const BOOK_TEMPLATES = {
       '--output-profile': 'tablet',
       '--epub-version': '3',
       '--preserve-cover-aspect-ratio': '',
-      '--flow-size': '0', 
+ 
       '--embed-all-fonts': '',
       '--disable-font-rescaling': '',
       '--minimum-line-height': '155',
@@ -174,7 +174,7 @@ const BOOK_TEMPLATES = {
       '--output-profile': 'tablet',
       '--epub-version': '3',
       '--preserve-cover-aspect-ratio': '',
-      '--flow-size': '0',
+
       '--embed-all-fonts': '',
       '--disable-font-rescaling': '',
       '--minimum-line-height': '160',

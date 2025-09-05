@@ -13,6 +13,9 @@ services:
       - API_KEY=your-secret-api-key-here
       - MAX_FILE_SIZE=104857600  # 100MB
       - CLEANUP_INTERVAL=86400   # 24 hours
+      - PUBLIC_URL=https://ebook-converter.byinfant.com
+      - INTERNAL_URL=http://ebook-converter-api:3000
+      - ENABLE_CORS=true
     volumes:
       - ./storage:/app/storage
       - /var/run/docker.sock:/var/run/docker.sock  # Pentru a rula comenzi Docker

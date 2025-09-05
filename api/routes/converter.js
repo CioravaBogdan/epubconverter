@@ -60,17 +60,48 @@ const { isValidTemplate, getAvailableTemplates } = require('../templates/bookTem
 
 // Validation rules
 const singleConversionValidation = [
-  body('format').optional().isIn(['epub', 'mobi', 'both']).withMessage('Format invalid'),
+  body('format')
+    .optional()
+    .trim()
+    .isIn(['epub', 'mobi', 'both'])
+    .withMessage('Format invalid - trebuie să fie: epub, mobi sau both'),
   body('template').optional().custom((value) => {
     if (value && !isValidTemplate(value)) {
       throw new Error('Template invalid. Template-uri disponibile: ' + Object.keys(getAvailableTemplates()).join(', '));
     }
     return true;
   }),
-  body('title').optional().isLength({ min: 1, max: 200 }).withMessage('Titlul trebuie să aibă între 1-200 caractere'),
-  body('author').optional().isLength({ min: 1, max: 100 }).withMessage('Autorul trebuie să aibă între 1-100 caractere'),
+  // Sanitize and validate title/author to be robust against oversized inputs coming from external systems (e.g., n8n)
+  body('title')
+    .optional()
+    .isString()
+    .trim()
+    .customSanitizer((v) => {
+      try {
+        if (typeof v !== 'string') return v;
+        const collapsed = v.replace(/\s+/g, ' ').trim();
+        // truncate to 200 chars as API contract
+        return collapsed.length > 200 ? collapsed.slice(0, 200) : collapsed;
+      } catch (_) { return v; }
+    })
+    .isLength({ min: 1, max: 200 })
+    .withMessage('Titlul trebuie să aibă între 1-200 caractere'),
+  body('author')
+    .optional()
+    .isString()
+    .trim()
+    .customSanitizer((v) => {
+      try {
+        if (typeof v !== 'string') return v;
+        const collapsed = v.replace(/\s+/g, ' ').trim();
+        return collapsed.length > 100 ? collapsed.slice(0, 100) : collapsed;
+      } catch (_) { return v; }
+    })
+    .isLength({ min: 1, max: 100 })
+    .withMessage('Autorul trebuie să aibă între 1-100 caractere'),
   body('optimize').optional().isIn(['kindle', 'ipad', 'generic']).withMessage('Opțiune optimizare invalidă'),
-  body('cover').optional().isBoolean().withMessage('Cover trebuie să fie boolean')
+  body('cover').optional().isBoolean().withMessage('Cover trebuie să fie boolean'),
+  body('includeOriginal').optional().isBoolean().withMessage('includeOriginal trebuie să fie boolean')
 ];
 
 // GET /api/templates - Lista template-urilor disponibile
@@ -86,6 +117,55 @@ router.get('/templates', (req, res) => {
     res.status(500).json({
       error: 'Eroare la obținerea template-urilor',
       code: 'TEMPLATES_ERROR',
+      details: error.message
+    });
+  }
+});
+
+// GET /api/info - Informații publice despre serviciu
+router.get('/info', (req, res) => {
+  try {
+    const getBaseUrl = (req) => {
+      if (req.headers['cf-ray'] || req.headers['x-forwarded-for'] || process.env.PUBLIC_URL) {
+        return process.env.PUBLIC_URL || 'https://ebook-converter.byinfant.com';
+      }
+      return `http://${req.get('host')}`;
+    };
+
+    const baseUrl = getBaseUrl(req);
+    const isExternal = !!(req.headers['cf-ray'] || req.headers['x-forwarded-for']);
+
+    res.json({
+      service: 'PDF to EPUB/MOBI Converter',
+      version: '1.0.0',
+      status: 'operational',
+      access: isExternal ? 'external' : 'internal',
+      endpoints: {
+        convert: `${baseUrl}/convert/single`,
+        convertAlias: `${baseUrl}/api/convert/single`,
+        templates: `${baseUrl}/api/templates`,
+        health: `${baseUrl}/health`
+      },
+      features: [
+        'PDF to EPUB conversion',
+        'PDF to MOBI conversion', 
+        'Both formats simultaneously',
+        'Include original PDF',
+        'Custom templates',
+        'Batch processing',
+        'ZIP download for multiple files'
+      ],
+      supportedFormats: {
+        input: ['PDF'],
+        output: ['EPUB', 'MOBI', 'PDF (original)']
+      },
+      publicUrl: process.env.PUBLIC_URL,
+      cloudflareEnabled: isExternal
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: 'Eroare la obținerea informațiilor serviciu',
+      code: 'INFO_ERROR',
       details: error.message
     });
   }
@@ -147,15 +227,23 @@ router.post('/single',
       }
 
       // Parametri conversie
+      const safeTitle = (req.body.title && typeof req.body.title === 'string')
+        ? req.body.title.toString().trim().replace(/\s+/g, ' ').slice(0, 200)
+        : path.parse(req.file.originalname).name;
+      const safeAuthor = (req.body.author && typeof req.body.author === 'string')
+        ? req.body.author.toString().trim().replace(/\s+/g, ' ').slice(0, 100)
+        : 'Unknown Author';
+
       const conversionParams = {
         inputPath,
         jobId,
         format: req.body.format || 'epub',
         template: req.body.template || 'default',
-        title: req.body.title || path.parse(req.file.originalname).name,
-        author: req.body.author || 'Unknown Author',
+        title: safeTitle,
+        author: safeAuthor,
         optimize: req.body.optimize || 'generic',
         extractCover: req.body.cover !== 'false',
+        includeOriginal: (req.body.includeOriginal === true || req.body.includeOriginal === 'true') ? true : false,
         originalFilename: req.file.originalname
       };
 
@@ -177,6 +265,18 @@ router.post('/single',
         processingTime: result.processingTime
       });
 
+      // Detectează URL-ul de bază pentru download-uri
+      const getBaseUrl = (req) => {
+        // Dacă cererea vine prin Cloudflare sau proxy extern
+        if (req.headers['cf-ray'] || req.headers['x-forwarded-for'] || process.env.PUBLIC_URL) {
+          return process.env.PUBLIC_URL || 'https://ebook-converter.byinfant.com';
+        }
+        // Pentru cereri interne sau locale
+        return `http://${req.get('host')}`;
+      };
+
+      const baseUrl = getBaseUrl(req);
+
       // Răspuns success
       const response = {
         success: true,
@@ -186,7 +286,8 @@ router.post('/single',
           filename: path.basename(file),
           format: path.extname(file).substring(1),
           size: fs.statSync(file).size,
-          downloadUrl: `/download/${path.basename(file)}`
+          downloadUrl: `/download/${path.basename(file)}`,
+          fullDownloadUrl: `${baseUrl}/download/${path.basename(file)}`
         })),
         processingTime: result.processingTime,
         metadata: {
@@ -200,6 +301,7 @@ router.post('/single',
       if (result.outputFiles.length > 1) {
         const zipPath = await createZipFile(result.outputFiles, jobId);
         response.zipDownload = `/download/${path.basename(zipPath)}`;
+        response.fullZipDownload = `${baseUrl}/download/${path.basename(zipPath)}`;
       }
 
       res.json(response);

@@ -21,11 +21,34 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
-// CORS configuration
-app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : '*',
-  credentials: true
-}));
+// CORS configuration pentru acces extern prin Cloudflare
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Permite cereri fără origin (Postman, curl, etc.)
+    if (!origin) return callback(null, true);
+    
+    // Permite orice origin dacă ENABLE_CORS este true
+    if (process.env.ENABLE_CORS === 'true') {
+      return callback(null, true);
+    }
+    
+    // Altfel folosește lista configurată
+    const allowedOrigins = process.env.ALLOWED_ORIGINS 
+      ? process.env.ALLOWED_ORIGINS.split(',')
+      : ['https://ebook-converter.byinfant.com', 'http://localhost:3000'];
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Nu este permis de politica CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-requested-with']
+};
+
+app.use(cors(corsOptions));
 
 // Rate limiting
 const limiter = rateLimit({
@@ -77,6 +100,7 @@ const requireApiKey = (req, res, next) => {
 
 // Routes
 app.use('/api/convert', converterRoutes);
+app.use('/api', converterRoutes); // Pentru /api/info și /api/templates
 app.use('/convert', converterRoutes); // Alias fără /api pentru compatibilitate
 
 // Health check endpoint

@@ -19,6 +19,7 @@ async function convertPdfToEbook(params) {
     author,
     optimize = 'generic',
     extractCover = true,
+  includeOriginal = false,
     originalFilename
   } = params;
 
@@ -49,7 +50,7 @@ async function convertPdfToEbook(params) {
       logger.info('Cover extraction disabled', { jobId, extractCover });
     }
 
-    const outputFiles = [];
+  const outputFiles = [];
     const formats = format === 'both' ? ['epub', 'mobi'] : [format];
 
     // Conversie pentru fiecare format cerut
@@ -88,6 +89,20 @@ async function convertPdfToEbook(params) {
         });
       } else {
         throw new Error(`Conversia ${targetFormat} a eșuat: ${conversionResult.error}`);
+      }
+    }
+
+    // Optionally include the original PDF in outputs for post-processing
+    if (includeOriginal) {
+      try {
+        const outputDir = path.join(__dirname, '..', 'storage', 'output');
+        const origName = `${jobId}_original.pdf`;
+        const origOut = path.join(outputDir, origName);
+        await fs.copy(inputPath, origOut);
+        outputFiles.push(origOut);
+        logger.info('Original PDF included in outputs', { jobId, path: origOut });
+      } catch (e) {
+        logger.warn('Failed to include original PDF', { jobId, error: e.message });
       }
     }
 
@@ -245,6 +260,12 @@ function buildCalibreArgs(inputPath, outputPath, format, options) {
   // Obține setările template-ului pentru formatul specific
   const templateSettings = getTemplateSettings(template || 'default', format);
   
+  // Unele versiuni Calibre nu suportă anumite argumente – le filtrăm preventiv
+  const unsupportedArgs = new Set([
+    '--preserve-cover-aspect-ratio',
+    '--flow-size'
+  ]);
+  
   // Mapează căile pentru container cu validare extra
   const inputBasename = path.basename(inputPath);
   const outputBasename = path.basename(outputPath);
@@ -286,6 +307,11 @@ function buildCalibreArgs(inputPath, outputPath, format, options) {
 
   // Adaugă setările din template, dar exclud --no-default-epub-cover dacă avem cover custom
   Object.entries(templateSettings.calibreSettings).forEach(([key, value]) => {
+    // Sare peste argumentele marcate ca nesuportate pentru versiunea curentă Calibre
+    if (unsupportedArgs.has(key)) {
+      logger.warn('Skipping unsupported Calibre argument', { key });
+      return;
+    }
     // Skip --no-default-epub-cover dacă avem un cover custom extras
     if (key === '--no-default-epub-cover' && extractedCoverPath) {
       return;

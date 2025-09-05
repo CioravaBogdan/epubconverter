@@ -1,12 +1,11 @@
-# Test script pentru conversie PDF to MOBI
+# Test script pentru conversie cu includeOriginal
 $ErrorActionPreference = "Stop"
 
 $apiUrl = "http://localhost:3000/convert/single"
 $pdfFile = "e:\Aplciatii Docker\ConvertPDF\Book On .pdf"
 $boundary = [System.Guid]::NewGuid().ToString()
 
-Write-Host "Testing PDF to MOBI conversion..." -ForegroundColor Green
-Write-Host "API URL: $apiUrl" -ForegroundColor Yellow
+Write-Host "Testing includeOriginal=true..." -ForegroundColor Green
 
 try {
     # Citește fișierul
@@ -24,11 +23,17 @@ try {
     $bodyLines += ""
     $bodyLines += $fileContent
     
-    # Format field pentru MOBI
+    # Format field pentru EPUB
     $bodyLines += "--$boundary"
     $bodyLines += "Content-Disposition: form-data; name=`"format`""
     $bodyLines += ""
-    $bodyLines += "mobi"
+    $bodyLines += "epub"
+    
+    # Include Original
+    $bodyLines += "--$boundary"
+    $bodyLines += "Content-Disposition: form-data; name=`"includeOriginal`""
+    $bodyLines += ""
+    $bodyLines += "true"
     
     # End boundary
     $bodyLines += "--$boundary--"
@@ -36,7 +41,7 @@ try {
     
     $body = $bodyLines -join $LF
     
-    Write-Host "Sending MOBI conversion request..." -ForegroundColor Yellow
+    Write-Host "Sending conversion request (epub + includeOriginal=true)..." -ForegroundColor Yellow
     
     # Trimite cererea
     $response = Invoke-WebRequest -Uri $apiUrl -Method POST `
@@ -46,14 +51,17 @@ try {
         -UseBasicParsing
     
     Write-Host "Response Status: $($response.StatusCode)" -ForegroundColor Green
-    Write-Host "Response Content:" -ForegroundColor Green
-    Write-Host $response.Content -ForegroundColor White
+    $responseJson = $response.Content | ConvertFrom-Json
+    
+    Write-Host "Success: $($responseJson.success)" -ForegroundColor Green
+    Write-Host "Job ID: $($responseJson.jobId)" -ForegroundColor Yellow
+    Write-Host "Files generated:" -ForegroundColor Green
+    
+    foreach ($file in $responseJson.files) {
+        Write-Host "  - $($file.filename) ($($file.format)) - Size: $([math]::Round($file.size/1MB, 2)) MB" -ForegroundColor White
+    }
     
 } catch {
     Write-Host "ERROR: $($_.Exception.Message)" -ForegroundColor Red
-    if ($_.Exception.Response) {
-        $reader = New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())
-        $responseBody = $reader.ReadToEnd()
-        Write-Host "Response Body: $responseBody" -ForegroundColor Red
-    }
+    Write-Host "Response: $($_.Exception.Response)" -ForegroundColor Red
 }
